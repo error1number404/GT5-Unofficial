@@ -152,6 +152,7 @@ import gregtech.common.tileentities.machines.multi.MTECryogenicFreezer;
 import gregtech.common.tileentities.machines.multi.MTEDecayWarehouse;
 import gregtech.common.tileentities.machines.multi.MTEDieselEngineLegacy;
 import gregtech.common.tileentities.machines.multi.MTEDistillationTower;
+import gregtech.common.tileentities.machines.multi.MTEEMMA;
 import gregtech.common.tileentities.machines.multi.MTEElectricBlastFurnace;
 import gregtech.common.tileentities.machines.multi.MTEElectricImplosionCompressor;
 import gregtech.common.tileentities.machines.multi.MTEEndothermicFridge;
@@ -678,6 +679,10 @@ public class LoaderMetaTileEntities implements Runnable { // TODO CHECK CIRCUIT 
         addItemTooltip(
             ItemList.Machine_Multi_Spinmatron.get(1),
             GTAuthors.buildAuthorsWithFormatSupplier(GTAuthors.fancyAuthorChrom, GTAuthors.AuthorNoc));
+
+        ItemList.Machine_Multi_EMMA.set(
+            new MTEEMMA(EMMA_CONTROLLER.ID, "multimachine.emma", "Electrochemical Mass-Manipulation Apparatus")
+                .getStackForm(1));
 
         ItemList.Machine_Multi_Autoclave.set(
             new MTEMultiAutoclave(MULTI_AUTOCLAVE_CONTROLLER.ID, "multimachine.autoclave", "Industrial Autoclave")

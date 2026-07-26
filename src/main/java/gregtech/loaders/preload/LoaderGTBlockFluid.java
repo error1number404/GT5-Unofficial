@@ -877,7 +877,7 @@ public class LoaderGTBlockFluid implements Runnable {
 
         GregTechAPI.sBlockMetal10 = new BlockMetal(
             "gt.blockmetal10",
-            new Materials[] { Materials.Shijima, Materials.Churitsu },
+            new Materials[] { Materials.Shijima, Materials.Churitsu, Materials.PrismaticNaquadah },
             OrePrefixes.block,
             gregtech.api.enums.Textures.BlockIcons.STORAGE_BLOCKS13);
 
