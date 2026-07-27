@@ -1,5 +1,6 @@
 package gregtech.common.tileentities.machines.multi;
 
+import static com.gtnewhorizon.structurelib.structure.StructureUtility.ofBlock;
 import static com.gtnewhorizon.structurelib.structure.StructureUtility.onElementPass;
 import static com.gtnewhorizon.structurelib.structure.StructureUtility.transpose;
 import static gregtech.api.enums.HatchElement.Energy;
@@ -8,6 +9,7 @@ import static gregtech.api.enums.HatchElement.InputHatch;
 import static gregtech.api.enums.HatchElement.Maintenance;
 import static gregtech.api.enums.HatchElement.OutputBus;
 import static gregtech.api.enums.HatchElement.OutputHatch;
+import static gregtech.api.structure.error.StructureErrorRegistry.UNKNOWN_TIER;
 import static gregtech.api.util.GTStructureUtility.buildHatchAdder;
 import static gregtech.api.util.GTStructureUtility.chainAllGlasses;
 import static gregtech.api.util.GTStructureUtility.ofFrame;
@@ -23,6 +25,9 @@ import com.gtnewhorizon.structurelib.structure.IStructureDefinition;
 import com.gtnewhorizon.structurelib.structure.ISurvivalBuildEnvironment;
 import com.gtnewhorizon.structurelib.structure.StructureDefinition;
 
+import bartworks.system.material.WerkstoffLoader;
+import goodgenerator.items.GGMaterial;
+import gregtech.api.GregTechAPI;
 import gregtech.api.casing.Casings;
 import gregtech.api.enums.Materials;
 import gregtech.api.enums.Textures;
@@ -91,13 +96,58 @@ public class MTEEMMA extends MTEExtendedPowerMultiBlockBase<MTEEMMA>
                         {"                           ","                           ","   D D               D D   ","    I                 O    ","FFEEIEEEEEEEEEEEEEEEEEOEE  ","    I                 O    ","FFEEIEEEEEEEEEEEEEEEEEOEE  ","    I                 O    ","   D D               D D   ","                           ","                           "},
                         {"                           ","   D D               D D   ","FFEEIEEEEEEEEEEEEEEEEEOEE  ","    IHHHHHHHHHHHHHHHHHO    ","    IHHHHHHHHHHHHHHHHHO    ","    IHHHHHHHHHHHHHHHHHO    ","    IHHHHHHHHHHHHHHHHHO    ","    IHHHHHHHHHHHHHHHHHO    ","FFEEIEEEEEEEEEEEEEEEEEOEE  ","   D D               D D   ","                           "},
                         {"   D D               D D   ","    I                 O    ","    IAAAAAAAAAAAAAAAAAO    ","    I                 O    ","    I                 O    ","    IGGGGGGGGGGGGGGGGGO    ","    I                 O    ","    I                 O    ","    IAAAAAAAAAAAAAAAAAO    ","    I                 O    ","   D D               D D   "},
-                        {"   D D               D D   ","FFEEHEEEEEEEEEEEEEEEEEOEE  ","    IAAAAAAAAAAAAAAAAAO    ","    I                 O    ","    I                 O    ","    IGGGGGGGGGGGGGGGGGO    ","    I                 O    ","    I                 O    ","    IAAAAAAAAAAAAAAAAAO    ","FFEEIEEEEEEEEEEEEEEEEEOEE  ","   D D               D D   "},
+                        {"   D D               D D   ","FFEEIEEEEEEEEEEEEEEEEEOEE  ","    IAAAAAAAAAAAAAAAAAO    ","    I                 O    ","    I                 O    ","    IGGGGGGGGGGGGGGGGGO    ","    I                 O    ","    I                 O    ","    IAAAAAAAAAAAAAAAAAO    ","FFEEIEEEEEEEEEEEEEEEEEOEE  ","   D D               D D   "},
                         {"   D D               D D   ","    I                 O    ","    IAAAAAAAAAAAAAAAAAO    ","    I                 O    ","    LBBBBBBBBBBBBBBBBBO    ","    IGGGGGGGGGGGGGGGGGO    ","    LBBBBBBBBBBBBBBBBBO    ","    I                 O    ","    IAAAAAAAAAAAAAAAAAO    ","    I                 O    ","   D D               D D   "},
-                        {"   D D      F     F  D D   ","FFEEHEEEEEEEFEEEEEFEEEOEE  ","    IAAAAAAAAAAAAAAAAAO    ","    I                 O    ","    I                 O    ","    IGGGGGGGGGGGGGGGGGO    ","    I                 O    ","    I                 O    ","    IAAAAAAAAAAAAAAAAAO    ","FFEEIEEEEEEEEEEEEEEEEEOEE  ","   D D               D D   "},
-                        {"   D D      F     F  D D   ","    I        JJJJJ    O    ","    IAAAAAAAAAAAAAAAAAO    ","    I                 O    ","    I                 O    ","    IGGGGGGGGGGGGGGGGGOCCCC","    I                 O    ","    I                 O    ","    IAAAAAAAAAAAAAAAAAO    ","    I                 O    ","   D D               D D   "},
-                        {"            FJJJJJF        ","   D D       JJJJJ   D D   ","FFEEIEEEEEEEEEEEEEEEEEOEE  ","    IHHHHHHHHHHHHHHHHHO    ","    IHHHHHHHHHHHHHHHHHO    ","    IHHHHHHHHHHHHHHHHHO   C","    IHHHHHHHHHHHHHHHHHO    ","    IHHHHHHHHHHHHHHHHHO    ","FFEEIEEEEEEEEEEEEEEEEEOEE  ","   D D               D D   ","                           "},
-                        {"            FJJ~JJF        ","             JJJJJ         ","   D D               D D   ","    I                 O    ","FFEEIEEEEEEEEEEEEEEEEEOEE  ","    I       F     F   O   C","FFEEIEEEEEEEEEEEEEEEEEOEE  ","    I                 O    ","   D D               D D   ","                           ","                           "},
-                        {"            FJJJJJFCCCCCCCC","            FJJJJJF       C","            F     F       C","   D D      F     F  D D  C","   D D      F     F  D D  C","   D D      F     F  D D  C","   D D               D D   ","   D D               D D   ","                           ","                           ","                           "}
+                        {"   D D               D D   ","FFEEIEEEEEEED     DEEEOEE  ","    IAAAAAAAAAAAAAAAAAO    ","    I                 O    ","    I                 O    ","    IGGGGGGGGGGGGGGGGGO    ","    I                 O    ","    I                 O    ","    IAAAAAAAAAAAAAAAAAO    ","FFEEIEEEEEEEEEEEEEEEEEOEE  ","   D D               D D   "},
+                        {"   D D               D D   ","    I       DFFFFFD   O    ","    IAAAAAAAAAAAAAAAAAO    ","    I                 O    ","    I                 O    ","    IGGGGGGGGGGGGGGGGGOCCCC","    I                 O    ","    I                 O    ","    IAAAAAAAAAAAAAAAAAO    ","    I                 O    ","   D D               D D   "},
+                        {"             JJJJJ         ","   D D      DJJJJJD  D D   ","FFEEIEEEEEEEEEEEEEEEEEOEE  ","    IHHHHHHHHHHHHHHHHHO    ","    IHHHHHHHHHHHHHHHHHO    ","    IHHHHHHHHHHHHHHHHHO   C","    IHHHHHHHHHHHHHHHHHO    ","    IHHHHHHHHHHHHHHHHHO    ","FFEEIEEEEEEEEEEEEEEEEEOEE  ","   D D               D D   ","                           "},
+                        {"             JJ~JJ         ","            DJJJJJD        ","   D D               D D   ","    I                 O    ","FFEEIEEEEEEEEEEEEEEEEEOEE  ","    I                 O   C","FFEEIEEEEEEEEEEEEEEEEEOEE  ","    I                 O    ","   D D               D D   ","                           ","                           "},
+                        {"             JJJJJCCCCCCCCC","            DJJJJJD       C","                          C","   D D               D D  C","   D D               D D  C","   D D               D D  C","   D D               D D   ","   D D               D D   ","                           ","                           ","                           "}
+                    }))
+                .addShape(
+                    STRUCTURE_TIER_2,
+                    transpose(new String[][] {
+                        {"                           ","                           ","                           ","   D D               D D   ","   D D               D D   ","   D D               D D   ","   D D               D D   ","   D D               D D   ","                           ","                           ","                           "},
+                        {"                           ","                           ","   D D               D D   ","    I                 O    ","FFEEIEEEEEEEEEEEEEEEEEOEE  ","    I                 O    ","FFEEIEEEEEEEEEEEEEEEEEOEE  ","    I                 O    ","   D D               D D   ","                           ","                           "},
+                        {"                           ","   D D               D D   ","FFEEIEEEEEEEEEEEEEEEEEOEE  ","    IHHHHHHHHHHHHHHHHHO    ","    IHHHHHHHHHHHHHHHHHO    ","    IHHHHHHHHHHHHHHHHHO    ","    IHHHHHHHHHHHHHHHHHO    ","    IHHHHHHHHHHHHHHHHHO    ","FFEEIEEEEEEEEEEEEEEEEEOEE  ","   D D               D D   ","                           "},
+                        {"   D D               D D   ","    I                 O    ","    IAAAAAAAAAAAAAAAAAO    ","    I                 O    ","    I                 O    ","    IGGGGGGGGGGGGGGGGGO    ","    I                 O    ","    I                 O    ","    IAAAAAAAAAAAAAAAAAO    ","    I                 O    ","   D D               D D   "},
+                        {"   D D               D D   ","FFEEIEEEEEEEEEEEEEEEEEOEE  ","    IAAAAAAAAAAAAAAAAAO    ","    I                 O    ","    LKKKKKKKKKKKKKKKKKO    ","    IGGGGGGGGGGGGGGGGGO    ","    LKKKKKKKKKKKKKKKKKO    ","    I                 O    ","    IAAAAAAAAAAAAAAAAAO    ","FFEEIEEEEEEEEEEEEEEEEEOEE  ","   D D               D D   "},
+                        {"   D D               D D   ","    I                 O    ","    IAAAAAAAAAAAAAAAAAO    ","    I                 O    ","    I                 O    ","    IGGGGGGGGGGGGGGGGGO    ","    I                 O    ","    I                 O    ","    IAAAAAAAAAAAAAAAAAO    ","    I                 O    ","   D D               D D   "},
+                        {"   D D               D D   ","FFEEIEEEEEEED     DEEEOEE  ","    IAAAAAAAAAAAAAAAAAO    ","    I                 O    ","    LKKKKKKKKKKKKKKKKKO    ","    IGGGGGGGGGGGGGGGGGO    ","    LKKKKKKKKKKKKKKKKKO    ","    I                 O    ","    IAAAAAAAAAAAAAAAAAO    ","FFEEIEEEEEEEEEEEEEEEEEOEE  ","   D D               D D   "},
+                        {"   D D               D D   ","    I       DFFFFFD   O    ","    IAAAAAAAAAAAAAAAAAO    ","    I                 O    ","    I                 O    ","    IGGGGGGGGGGGGGGGGGOCCCC","    I                 O    ","    I                 O    ","    IAAAAAAAAAAAAAAAAAO    ","    I                 O    ","   D D               D D   "},
+                        {"             JJJJJ         ","   D D      DJJJJJD  D D   ","FFEEIEEEEEEEEEEEEEEEEEOEE  ","    IHHHHHHHHHHHHHHHHHO    ","    IHHHHHHHHHHHHHHHHHO    ","    IHHHHHHHHHHHHHHHHHO   C","    IHHHHHHHHHHHHHHHHHO    ","    IHHHHHHHHHHHHHHHHHO    ","FFEEIEEEEEEEEEEEEEEEEEOEE  ","   D D               D D   ","                           "},
+                        {"             JJ~JJ         ","            DJJJJJD        ","   D D               D D   ","    I                 O    ","FFEEIEEEEEEEEEEEEEEEEEOEE  ","    I                 O   C","FFEEIEEEEEEEEEEEEEEEEEOEE  ","    I                 O    ","   D D               D D   ","                           ","                           "},
+                        {"             JJJJJCCCCCCCCC","            DJJJJJD       C","                          C","   D D               D D  C","   D D               D D  C","   D D               D D  C","   D D               D D   ","   D D               D D   ","                           ","                           ","                           "}
+                    }))
+                .addShape(
+                    STRUCTURE_TIER_3,
+                    transpose(new String[][] {
+                        {"                           ","                           ","                           ","   D D               D D   ","   D D               D D   ","   D D               D D   ","   D D               D D   ","   D D               D D   ","                           ","                           ","                           "},
+                        {"                           ","                           ","   D D               D D   ","    I                 O    ","FFEEIEEEEEEEEEEEEEEEEEOEE  ","    I                 O    ","FFEEIEEEEEEEEEEEEEEEEEOEE  ","    I                 O    ","   D D               D D   ","                           ","                           "},
+                        {"                           ","   D D               D D   ","FFEEIEEEEEEEEEEEEEEEEEOEE  ","    IHHHHHHHHHHHHHHHHHO    ","    IHHHHHHHHHHHHHHHHHO    ","    IHHHHHHHHHHHHHHHHHO    ","    IHHHHHHHHHHHHHHHHHO    ","    IHHHHHHHHHHHHHHHHHO    ","FFEEIEEEEEEEEEEEEEEEEEOEE  ","   D D               D D   ","                           "},
+                        {"   D D               D D   ","    I                 O    ","    IAAAAAAAAAAAAAAAAAO    ","    I                 O    ","    LMMMMMMMMMMMMMMMMMO    ","    IGGGGGGGGGGGGGGGGGO    ","    LMMMMMMMMMMMMMMMMMO    ","    I                 O    ","    IAAAAAAAAAAAAAAAAAO    ","    I                 O    ","   D D               D D   "},
+                        {"   D D               D D   ","FFEEIEEEEEEEEEEEEEEEEEOEE  ","    IAAAAAAAAAAAAAAAAAO    ","    I                 O    ","    I                 O    ","    IGGGGGGGGGGGGGGGGGO    ","    I                 O    ","    I                 O    ","    IAAAAAAAAAAAAAAAAAO    ","FFEEIEEEEEEEEEEEEEEEEEOEE  ","   D D               D D   "},
+                        {"   D D               D D   ","    I                 O    ","    IAAAAAAAAAAAAAAAAAO    ","    LMMMMMMMMMMMMMMMMMO    ","    I                 O    ","    IGGGGGGGGGGGGGGGGGO    ","    I                 O    ","    LMMMMMMMMMMMMMMMMMO    ","    IAAAAAAAAAAAAAAAAAO    ","    I                 O    ","   D D               D D   "},
+                        {"   D D               D D   ","FFEEIEEEEEEED     DEEEOEE  ","    IAAAAAAAAAAAAAAAAAO    ","    I                 O    ","    I                 O    ","    IGGGGGGGGGGGGGGGGGO    ","    I                 O    ","    I                 O    ","    IAAAAAAAAAAAAAAAAAO    ","FFEEIEEEEEEEEEEEEEEEEEOEE  ","   D D               D D   "},
+                        {"   D D               D D   ","    I       DFFFFFD   O    ","    IAAAAAAAAAAAAAAAAAO    ","    I                 O    ","    LMMMMMMMMMMMMMMMMMO    ","    IGGGGGGGGGGGGGGGGGOCCCC","    LMMMMMMMMMMMMMMMMMO    ","    I                 O    ","    IAAAAAAAAAAAAAAAAAO    ","    I                 O    ","   D D               D D   "},
+                        {"             JJJJJ         ","   D D      DJJJJJD  D D   ","FFEEIEEEEEEEEEEEEEEEEEOEE  ","    IHHHHHHHHHHHHHHHHHO    ","    IHHHHHHHHHHHHHHHHHO    ","    IHHHHHHHHHHHHHHHHHO   C","    IHHHHHHHHHHHHHHHHHO    ","    IHHHHHHHHHHHHHHHHHO    ","FFEEIEEEEEEEEEEEEEEEEEOEE  ","   D D               D D   ","                           "},
+                        {"             JJ~JJ         ","            DJJJJJD        ","   D D               D D   ","    I                 O    ","FFEEIEEEEEEEEEEEEEEEEEOEE  ","    I                 O   C","FFEEIEEEEEEEEEEEEEEEEEOEE  ","    I                 O    ","   D D               D D   ","                           ","                           "},
+                        {"             JJJJJCCCCCCCCC","            DJJJJJD       C","                          C","   D D               D D  C","   D D               D D  C","   D D               D D  C","   D D               D D   ","   D D               D D   ","                           ","                           ","                           "}
+                    }))
+                .addShape(
+                    STRUCTURE_TIER_4,
+                    transpose(new String[][] {
+                        {"                           ","                           ","                           ","   D D               D D   ","   D D               D D   ","   D D               D D   ","   D D               D D   ","   D D               D D   ","                           ","                           ","                           "},
+                        {"                           ","                           ","   D D               D D   ","    I                 O    ","FFEEIEEEEEEEEEEEEEEEEEOEE  ","    I                 O    ","FFEEIEEEEEEEEEEEEEEEEEOEE  ","    I                 O    ","   D D               D D   ","                           ","                           "},
+                        {"                           ","   D D               D D   ","FFEEIEEEEEEEEEEEEEEEEEOEE  ","    IHHHHHHHHHHHHHHHHHO    ","    IHHHHHHHHHHHHHHHHHO    ","    IHHHHHHHHHHHHHHHHHO    ","    IHHHHHHHHHHHHHHHHHO    ","    IHHHHHHHHHHHHHHHHHO    ","FFEEIEEEEEEEEEEEEEEEEEOEE  ","   D D               D D   ","                           "},
+                        {"   D D               D D   ","    I                 O    ","    IAAAAAAAAAAAAAAAAAO    ","    I                 O    ","    LNNNNNNNNNNNNNNNNNO    ","    IGGGGGGGGGGGGGGGGGO    ","    LNNNNNNNNNNNNNNNNNO    ","    I                 O    ","    IAAAAAAAAAAAAAAAAAO    ","    I                 O    ","   D D               D D   "},
+                        {"   D D               D D   ","FFEEIEEEEEEEEEEEEEEEEEOEE  ","    IAAAAAAAAAAAAAAAAAO    ","    LNNNNNNNNNNNNNNNNNO    ","    I                 O    ","    IGGGGGGGGGGGGGGGGGO    ","    I                 O    ","    LNNNNNNNNNNNNNNNNNO    ","    IAAAAAAAAAAAAAAAAAO    ","FFEEIEEEEEEEEEEEEEEEEEOEE  ","   D D               D D   "},
+                        {"   D D               D D   ","    I                 O    ","    IAAAAAAAAAAAAAAAAAO    ","    I                 O    ","    I                 O    ","    IGGGGGGGGGGGGGGGGGO    ","    I                 O    ","    I                 O    ","    IAAAAAAAAAAAAAAAAAO    ","    I                 O    ","   D D               D D   "},
+                        {"   D D               D D   ","FFEEIEEEEEEED     DEEEOEE  ","    IAAAAAAAAAAAAAAAAAO    ","    LNNNNNNNNNNNNNNNNNO    ","    I                 O    ","    IGGGGGGGGGGGGGGGGGO    ","    I                 O    ","    LNNNNNNNNNNNNNNNNNO    ","    IAAAAAAAAAAAAAAAAAO    ","FFEEIEEEEEEEEEEEEEEEEEOEE  ","   D D               D D   "},
+                        {"   D D               D D   ","    I       DFFFFFD   O    ","    IAAAAAAAAAAAAAAAAAO    ","    I                 O    ","    LNNNNNNNNNNNNNNNNNO    ","    IGGGGGGGGGGGGGGGGGOCCCC","    LNNNNNNNNNNNNNNNNNO    ","    I                 O    ","    IAAAAAAAAAAAAAAAAAO    ","    I                 O    ","   D D               D D   "},
+                        {"             JJJJJ         ","   D D      DJJJJJD  D D   ","FFEEIEEEEEEEEEEEEEEEEEOEE  ","    IHHHHHHHHHHHHHHHHHO    ","    IHHHHHHHHHHHHHHHHHO    ","    IHHHHHHHHHHHHHHHHHO   C","    IHHHHHHHHHHHHHHHHHO    ","    IHHHHHHHHHHHHHHHHHO    ","FFEEIEEEEEEEEEEEEEEEEEOEE  ","   D D               D D   ","                           "},
+                        {"             JJ~JJ         ","            DJJJJJD        ","   D D               D D   ","    I                 O    ","FFEEIEEEEEEEEEEEEEEEEEOEE  ","    I                 O   C","FFEEIEEEEEEEEEEEEEEEEEOEE  ","    I                 O    ","   D D               D D   ","                           ","                           "},
+                        {"             JJJJJCCCCCCCCC","            DJJJJJD       C","                          C","   D D               D D  C","   D D               D D  C","   D D               D D  C","   D D               D D   ","   D D               D D   ","                           ","                           ","                           "}
                     }))
                 //spotless:on
                 .addElement('A', chainAllGlasses())
@@ -165,11 +215,9 @@ public class MTEEMMA extends MTEExtendedPowerMultiBlockBase<MTEEMMA>
     protected MultiblockTooltipBuilder createTooltip() {
         MultiblockTooltipBuilder tt = new MultiblockTooltipBuilder();
         tt.addMachineType("Electrolyzer, EMMA")
-            .addBulkMachineInfo(PARALLEL_PER_TIER, SPEED, EU_EFFICIENCY)
-            .addPollutionAmount(getPollutionPerSecond(null))
             .beginStructureBlock(5, 5, 5, false)
             .addController("Front center, 3rd layer")
-            .addCasing("6-43", "Electrolyzer Casing", false)
+            .addCasing("6-43", "Electrolyzer Casing", false) // Fix amount
             .addCasing("12", "Potin Frame Box", false)
             .addCasing("4", "Tin Item Pipe Casing", false)
             .addCasing("4", "Brass Item Pipe Casing", false)
@@ -197,25 +245,33 @@ public class MTEEMMA extends MTEExtendedPowerMultiBlockBase<MTEEMMA>
 
     @Override
     public int getMaxParallelRecipes() {
-        return (PARALLEL_PER_TIER * GTUtility.getTier(this.getMaxInputVoltage()));
+        return PARALLEL_PER_TIER * GTUtility.getTier(this.getMaxInputVoltage());
     }
 
     private int casingAmount;
+    private int structureTier;
 
     private void onCasingAdded() {
         casingAmount++;
     }
 
+    private static String getStructurePiece(ItemStack stackSize) {
+        if (stackSize == null || stackSize.stackSize <= 1) return STRUCTURE_TIER_1;
+        if (stackSize.stackSize == 2) return STRUCTURE_TIER_2;
+        if (stackSize.stackSize == 3) return STRUCTURE_TIER_3;
+        return STRUCTURE_TIER_4;
+    }
+
     @Override
     public void construct(ItemStack stackSize, boolean hintsOnly) {
-        buildPiece(STRUCTURE_PIECE_MAIN, stackSize, hintsOnly, OFFSET_X, OFFSET_Y, OFFSET_Z);
+        buildPiece(getStructurePiece(stackSize), stackSize, hintsOnly, OFFSET_X, OFFSET_Y, OFFSET_Z);
     }
 
     @Override
     public int survivalConstruct(ItemStack stackSize, int elementBudget, ISurvivalBuildEnvironment env) {
         if (mMachine) return -1;
         return survivalBuildPiece(
-            STRUCTURE_PIECE_MAIN,
+            getStructurePiece(stackSize),
             stackSize,
             OFFSET_X,
             OFFSET_Y,
@@ -228,14 +284,24 @@ public class MTEEMMA extends MTEExtendedPowerMultiBlockBase<MTEEMMA>
 
     @Override
     public void checkMachine(IGregTechTileEntity aBaseMetaTileEntity, ItemStack aStack, List<StructureError> errors) {
-        casingAmount = 0;
-        if (!checkPiece(STRUCTURE_PIECE_MAIN, OFFSET_X, OFFSET_Y, OFFSET_Z, errors)) return;
-        checkCasingMin(errors, casingAmount, 6);
-        checkHasEnergyHatch(errors);
-        checkHasMaintenanceHatch(errors);
-        checkHasMufflerHatch(errors);
-        checkHasAnyInput(errors);
-        checkHasAnyOutput(errors);
+        structureTier = 0;
+        String[] pieces = { STRUCTURE_TIER_4, STRUCTURE_TIER_3, STRUCTURE_TIER_2, STRUCTURE_TIER_1 };
+        int[] tiers = { 4, 3, 2, 1 };
+        for (int i = 0; i < pieces.length; i++) {
+            clearHatches();
+            casingAmount = 0;
+            errors.clear();
+            if (!checkPiece(pieces[i], OFFSET_X, OFFSET_Y, OFFSET_Z, errors)) continue;
+            structureTier = tiers[i];
+            checkCasingMin(errors, casingAmount, 6);
+            checkHasEnergyHatch(errors);
+            checkHasMaintenanceHatch(errors);
+            checkHasMufflerHatch(errors);
+            checkHasAnyInput(errors);
+            checkHasAnyOutput(errors);
+            return;
+        }
+        errors.add(UNKNOWN_TIER);
     }
 
     @Override
