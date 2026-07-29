@@ -13,7 +13,11 @@ import static gregtech.api.structure.error.StructureErrorRegistry.UNKNOWN_TIER;
 import static gregtech.api.util.GTStructureUtility.buildHatchAdder;
 import static gregtech.api.util.GTStructureUtility.chainAllGlasses;
 import static gregtech.api.util.GTStructureUtility.ofFrame;
+import static gregtech.common.tileentities.machines.multi.MTEEMMA.EMMAElectrodeHatches.ElectrodeHatch;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import net.minecraft.item.ItemStack;
@@ -31,6 +35,7 @@ import gregtech.api.GregTechAPI;
 import gregtech.api.casing.Casings;
 import gregtech.api.enums.Materials;
 import gregtech.api.enums.Textures;
+import gregtech.api.interfaces.IHatchElement;
 import gregtech.api.interfaces.IIconContainer;
 import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
@@ -42,8 +47,10 @@ import gregtech.api.recipe.RecipeMap;
 import gregtech.api.recipe.RecipeMaps;
 import gregtech.api.structure.error.StructureError;
 import gregtech.api.util.GTUtility;
+import gregtech.api.util.IGTHatchAdder;
 import gregtech.api.util.MultiblockTooltipBuilder;
-import gregtech.common.pollution.PollutionConfig;
+import kubatech.tileentity.gregtech.hatch.MTEElectrodeDetectorHatch;
+import kubatech.tileentity.gregtech.hatch.MTEElectrodeHatch;
 
 public class MTEEMMA extends MTEExtendedPowerMultiBlockBase<MTEEMMA>
     implements ISurvivalConstructable, ICasingTextureProvider {
@@ -177,7 +184,7 @@ public class MTEEMMA extends MTEExtendedPowerMultiBlockBase<MTEEMMA>
                         .buildAndChain(onElementPass(MTEEMMA::onCasingAdded, Casings.ElectrolyzerCasing.asElement())))
                 .addElement(
                     'L',
-                    buildHatchAdder(MTEEMMA.class).atLeast(InputBus)
+                    buildHatchAdder(MTEEMMA.class).atLeast(ElectrodeHatch)
                         .casingIndex(Casings.ElectrolyzerCasing.textureId)
                         .hint(4)
                         .buildAndChain(onElementPass(MTEEMMA::onCasingAdded, Casings.ElectrolyzerCasing.asElement())))
@@ -296,7 +303,6 @@ public class MTEEMMA extends MTEExtendedPowerMultiBlockBase<MTEEMMA>
             checkCasingMin(errors, casingAmount, 6);
             checkHasEnergyHatch(errors);
             checkHasMaintenanceHatch(errors);
-            checkHasMufflerHatch(errors);
             checkHasAnyInput(errors);
             checkHasAnyOutput(errors);
             return;
@@ -304,9 +310,85 @@ public class MTEEMMA extends MTEExtendedPowerMultiBlockBase<MTEEMMA>
         errors.add(UNKNOWN_TIER);
     }
 
+    // maybe move implementation not per each multi but kinda like regular input buses somewhere TODO
+    private final List<MTEElectrodeHatch> electrodeHatch = new ArrayList<>();
+    private final List<MTEElectrodeDetectorHatch> electrodeDetectorHatch = new ArrayList<>();
+
+    @Override
+    public void clearHatches() {
+        super.clearHatches();
+        electrodeHatch.clear();
+        electrodeDetectorHatch.clear();
+    }
+
+    private boolean addElectrodeHatchToMachineList(IGregTechTileEntity aTileEntity, int aBaseCasingIndex) {
+        if (electrodeHatch != null) return false;
+        if (aTileEntity == null) return false;
+        IMetaTileEntity aMetaTileEntity = aTileEntity.getMetaTileEntity();
+        if (aMetaTileEntity == null) return false;
+        if (aMetaTileEntity instanceof MTEElectrodeHatch hatch) {
+            hatch.updateTexture(aBaseCasingIndex);
+            hatch.updateCraftingIcon(this.getMachineCraftingIcon());
+            electrodeHatch.add(hatch);
+            return true;
+        }
+        return false;
+    }
+
+    private boolean addElectrodeDetectorHatchToMachineList(IGregTechTileEntity aTileEntity, int aBaseCasingIndex) {
+        if (aTileEntity == null) return false;
+        IMetaTileEntity aMetaTileEntity = aTileEntity.getMetaTileEntity();
+        if (aMetaTileEntity == null) return false;
+        if (aMetaTileEntity instanceof MTEElectrodeDetectorHatch hatch) {
+            hatch.updateTexture(aBaseCasingIndex);
+            hatch.updateCraftingIcon(this.getMachineCraftingIcon());
+            electrodeDetectorHatch.add(hatch);
+            return true;
+        }
+        return false;
+    }
+
+    enum EMMAElectrodeHatches implements IHatchElement<MTEEMMA> {
+
+        ElectrodeHatch(MTEEMMA::addElectrodeHatchToMachineList, MTEElectrodeHatch.class) {
+
+            @Override
+            public long count(MTEEMMA t) {
+                if (t.electrodeHatch == null) return 0;
+                return 1;
+            }
+        },
+        ElectrodeDetectorHatch(MTEEMMA::addElectrodeDetectorHatchToMachineList, MTEElectrodeDetectorHatch.class) {
+
+            @Override
+            public long count(MTEEMMA t) {
+                return t.electrodeDetectorHatch.size();
+            }
+        },;
+
+        private final List<Class<? extends IMetaTileEntity>> mteClasses;
+        private final IGTHatchAdder<MTEEMMA> adder;
+
+        @SafeVarargs
+        EMMAElectrodeHatches(IGTHatchAdder<MTEEMMA> adder, Class<? extends IMetaTileEntity>... mteClasses) {
+            this.mteClasses = Collections.unmodifiableList(Arrays.asList(mteClasses));
+            this.adder = adder;
+        }
+
+        @Override
+        public List<? extends Class<? extends IMetaTileEntity>> mteClasses() {
+            return mteClasses;
+        }
+
+        @Override
+        public IGTHatchAdder<? super MTEEMMA> adder() {
+            return adder;
+        }
+    }
+
     @Override
     public int getPollutionPerSecond(final ItemStack aStack) {
-        return PollutionConfig.pollutionPerSecondMultiIndustrialElectrolyzer;
+        return 0;
     }
 
     @Override
