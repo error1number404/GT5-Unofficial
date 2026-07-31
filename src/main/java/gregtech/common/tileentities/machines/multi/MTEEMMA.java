@@ -14,6 +14,7 @@ import static gregtech.api.util.GTStructureUtility.buildHatchAdder;
 import static gregtech.api.util.GTStructureUtility.chainAllGlasses;
 import static gregtech.api.util.GTStructureUtility.ofFrame;
 import static gregtech.common.tileentities.machines.multi.MTEEMMA.EMMAElectrodeHatches.ElectrodeHatch;
+import static net.minecraft.util.EnumChatFormatting.BOLD;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -23,7 +24,9 @@ import java.util.List;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumChatFormatting;
 import net.minecraftforge.common.util.ForgeDirection;
+import net.minecraftforge.fluids.FluidStack;
 
+import com.google.common.collect.ImmutableList;
 import com.gtnewhorizon.structurelib.alignment.constructable.ISurvivalConstructable;
 import com.gtnewhorizon.structurelib.structure.IStructureDefinition;
 import com.gtnewhorizon.structurelib.structure.ISurvivalBuildEnvironment;
@@ -55,6 +58,64 @@ import kubatech.tileentity.gregtech.hatch.MTEElectrodeHatch;
 public class MTEEMMA extends MTEExtendedPowerMultiBlockBase<MTEEMMA>
     implements ISurvivalConstructable, ICasingTextureProvider {
 
+    public static class Electrolyte {
+
+        public final Materials material;
+        public final float reactivity;
+        public final int amountToBecomeReactive; // L needed to reach reactive state
+
+        public Electrolyte(Materials material, float reactivity, int amountToBecomeReactive) {
+            this.material = material;
+            this.reactivity = reactivity;
+            this.amountToBecomeReactive = amountToBecomeReactive;
+        }
+
+        public FluidStack getStack(int amount) {
+            FluidStack stack = material.getFluid(amount);
+            return stack != null ? stack : material.getMolten(amount);
+        }
+    }
+
+    private static final List<List<Electrolyte>> ELECTROLYTES = ImmutableList.of(
+        // Tier 1
+        ImmutableList.of(
+            new Electrolyte(Materials.Grade1PurifiedWater, 0.6f, 175),
+            new Electrolyte(Materials.Grade2PurifiedWater, 0.4f, 100)),
+        // Tier 2
+        ImmutableList.of(
+            new Electrolyte(Materials.Grade3PurifiedWater, 0.7f, 350),
+            new Electrolyte(Materials.Grade4PurifiedWater, 0.3f, 200)),
+        // Tier 3
+        ImmutableList.of(
+            new Electrolyte(Materials.Grade5PurifiedWater, 0.8f, 550),
+            new Electrolyte(Materials.Grade6PurifiedWater, 0.2f, 300)),
+        // Tier 4
+        ImmutableList.of(
+            new Electrolyte(Materials.Grade7PurifiedWater, 0.9f, 750),
+            new Electrolyte(Materials.Grade8PurifiedWater, 0.1f, 400),
+            new Electrolyte(Materials.BioMediumSterilized, 1.0f, 750),
+            new Electrolyte(Materials.GrowthMediumSterilized, 0.01f, 500)));
+    private static final Materials base = Materials.StableBaryonicMatter;
+
+    private static final float SPEED_PER_100KL_OF_ELECTROLYTE = 0.125f;
+    private static final ImmutableList<Integer> INTERNAL_CAPACITY_KL = ImmutableList.of(200, 400, 600, 800);
+    private static final int ELECTRODE_DURA_PER_PARALLEL = 40;
+    private static final float SPEED = 4f;
+    private static final float EU_EFFICIENCY = 0.7f;
+    private static final float ELECTRODE_EU_PENALTY = 4.0f;
+    private static final float ELECTRODE_SPEED_PENALTY = 0.25f;
+    private static final float ELECTRODE_DURABILITY_BOOST = 0.5f;
+    private static final float ELECTRODE_EU_BOOST = 4.0f;
+    private static final float ELECTRODE_SPEED_BOOST = 4.0f;
+    private static final float ELECTRODE_DURABILITY_PENALTY = 2.0f;
+    private static final float CONSUME_UP_TO = 0.0025f;
+
+    private static final List<List<Float>> IMBALANCE_PENALTIES = ImmutableList.of(
+        ImmutableList.of(0.05f, 0.25f),
+        ImmutableList.of(0.1f, 0.50f),
+        ImmutableList.of(0.2f, 0.75f),
+        ImmutableList.of(0.3f, 0.99f));
+
     private static IStructureDefinition<MTEEMMA> STRUCTURE_DEFINITION = null;
 
     private static final int OFFSET_X = 15;
@@ -65,10 +126,6 @@ public class MTEEMMA extends MTEExtendedPowerMultiBlockBase<MTEEMMA>
     private static final String STRUCTURE_TIER_2 = "t2";
     private static final String STRUCTURE_TIER_3 = "t3";
     private static final String STRUCTURE_TIER_4 = "t4";
-
-    private static final int PARALLEL_PER_TIER = 4;
-    private static final float SPEED = 2.8f;
-    private static final float EU_EFFICIENCY = 0.9f;
 
     private static final IIconContainer TEXTURE_CONTROLLER = Textures.BlockIcons.custom("iconsets/OVERLAY_EMMA");
     private static final IIconContainer TEXTURE_CONTROLLER_GLOW = Textures.BlockIcons
@@ -222,7 +279,161 @@ public class MTEEMMA extends MTEExtendedPowerMultiBlockBase<MTEEMMA>
     protected MultiblockTooltipBuilder createTooltip() {
         MultiblockTooltipBuilder tt = new MultiblockTooltipBuilder();
         tt.addMachineType("Electrolyzer, EMMA")
-            .beginStructureBlock(5, 5, 5, false)
+            .addInfo("Overclocks limited to " + EnumChatFormatting.WHITE + "Hatch Tier + 1" + EnumChatFormatting.GRAY)
+            .addSupportAny()
+            .addUnlimitedTierSkips()
+            .addSeparator()
+            .addInfo(
+                "Gains " + EnumChatFormatting.WHITE
+                    + "2"
+                    + EnumChatFormatting.GRAY
+                    + " Electrode hatches per Structure Tier")
+            .addInfo(
+                EnumChatFormatting.YELLOW + "1"
+                    + EnumChatFormatting.GRAY
+                    + " parallel for every "
+                    + EnumChatFormatting.WHITE
+                    + ELECTRODE_DURA_PER_PARALLEL
+                    + EnumChatFormatting.GRAY
+                    + " max durability of the sum of the electrodes")
+            .addStaticSpeedInfo(SPEED)
+            .addStaticEuEffInfo(EU_EFFICIENCY)
+            .addInfo(
+                "Every second, up to " + EnumChatFormatting.YELLOW
+                    + String.format("%.2f", CONSUME_UP_TO * 100)
+                    + "%"
+                    + EnumChatFormatting.GRAY
+                    + " of the electrolyte and base in internal storage is converted to deactivated electrolyte and returned")
+            .addInfo(
+                "Every second, " + EnumChatFormatting.YELLOW
+                    + "1"
+                    + EnumChatFormatting.GRAY
+                    + " durability is consumed from a random electrode")
+            .addSeparator()
+            .addInfo("Internal capacity is determined by Structure Tier");
+        for (int i = 0; i < INTERNAL_CAPACITY_KL.size(); i++) {
+            tt.addInfo(
+                "Tier " + EnumChatFormatting.WHITE
+                    + (i + 1)
+                    + EnumChatFormatting.GRAY
+                    + ": "
+                    + EnumChatFormatting.AQUA
+                    + INTERNAL_CAPACITY_KL.get(i)
+                    + EnumChatFormatting.GRAY
+                    + " KL");
+        }
+        tt.addInfo(
+            "Any amount of electrolyte and base provided is consumed until " + EnumChatFormatting.AQUA
+                + "internal capacity"
+                + EnumChatFormatting.GRAY
+                + " is reached")
+            .addInfo(
+                "Gains " + EnumChatFormatting.GREEN
+                    + "x"
+                    + SPEED_PER_100KL_OF_ELECTROLYTE
+                    + EnumChatFormatting.GRAY
+                    + " speed per 100 KL of electrolyte, up to "
+                    + EnumChatFormatting.GREEN
+                    + "x2")
+            .addSeparator();
+        // tt.addInfo("Each Structure Tier unlocks new electrolytes");
+        // int m = 0;
+        // List<EnumChatFormatting> electrolyteColors = ImmutableList
+        // .of(EnumChatFormatting.GOLD, EnumChatFormatting.GREEN);
+        // for (int i = 0; i < ELECTROLYTES.size(); i++) {
+        // for (Electrolyte electrolyte : ELECTROLYTES.get(i)) {
+        // tt.addInfo(
+        // "Tier " + EnumChatFormatting.WHITE
+        // + (i + 1)
+        // + EnumChatFormatting.GRAY
+        // + ": "
+        // + electrolyteColors.get(m % 2)
+        // + electrolyte.material.getLocalizedName()
+        // + EnumChatFormatting.GRAY
+        // + " | "
+        // + EnumChatFormatting.RED
+        // + (int) (electrolyte.reactivity * 100)
+        // + "%"
+        // + EnumChatFormatting.GRAY
+        // + " reactivity | "
+        // + EnumChatFormatting.AQUA
+        // + electrolyte.amountToBecomeReactive
+        // + EnumChatFormatting.GRAY
+        // + " KL");
+        // m++;
+        // }
+        // }
+        tt.addInfo(
+            "Some recipes " + EnumChatFormatting.RED
+                + BOLD
+                + "require"
+                + EnumChatFormatting.RESET
+                + EnumChatFormatting.GRAY
+                + " certain "
+                + EnumChatFormatting.GREEN
+                + "reactivity %");
+        tt.addSeparator()
+            .addInfo(
+                "Capacity that is not taken by electrolyte should be filled with " + EnumChatFormatting.LIGHT_PURPLE
+                    + base.getLocalizedName())
+            .addSeparator()
+            .addInfo("Electrolyte imbalance affects speed");
+        for (List<Float> penalty : IMBALANCE_PENALTIES) {
+            tt.addInfo(
+                EnumChatFormatting.YELLOW + ""
+                    + (int) (penalty.get(0) * 100)
+                    + "%"
+                    + EnumChatFormatting.GRAY
+                    + " imbalance: "
+                    + EnumChatFormatting.RED
+                    + String.format("%.2f", 1f - penalty.get(1))
+                    + "x"
+                    + EnumChatFormatting.GRAY
+                    + " Speed");
+        }
+        tt.addSeparator()
+            .addInfo("Electrodes insertion")
+            .addInfo(
+                "Lowering electrodes — up to " + EnumChatFormatting.RED
+                    + "+5%"
+                    + EnumChatFormatting.GRAY
+                    + " reactivity (additive), up to "
+                    + EnumChatFormatting.GREEN
+                    + "4x"
+                    + EnumChatFormatting.GRAY
+                    + " Speed, "
+                    + EnumChatFormatting.RED
+                    + "4x"
+                    + EnumChatFormatting.GRAY
+                    + " EU cost, "
+                    + EnumChatFormatting.YELLOW
+                    + "2x"
+                    + EnumChatFormatting.GRAY
+                    + " durability cost")
+            .addInfo(
+                "Extracting electrodes — up to " + EnumChatFormatting.RED
+                    + "−5%"
+                    + EnumChatFormatting.GRAY
+                    + " reactivity (additive), up to "
+                    + EnumChatFormatting.GREEN
+                    + "0.25x"
+                    + EnumChatFormatting.GRAY
+                    + " Speed, "
+                    + EnumChatFormatting.RED
+                    + "4x"
+                    + EnumChatFormatting.GRAY
+                    + " EU cost, "
+                    + EnumChatFormatting.YELLOW
+                    + "0.5x"
+                    + EnumChatFormatting.GRAY
+                    + " durability cost");
+        tt.addInfo(
+            "If an electrode is not present in any electrode hatch, the machine will " + EnumChatFormatting.RED
+                + BOLD
+                + "powerfail")
+            .addSeparator()
+            .addInfo(EnumChatFormatting.GREEN + "It's got what plants crave");
+        tt.beginStructureBlock(5, 5, 5, false)
             .addController("Front center, 3rd layer")
             .addCasing("6-43", "Electrolyzer Casing", false) // Fix amount
             .addCasing("12", "Potin Frame Box", false)
@@ -252,7 +463,7 @@ public class MTEEMMA extends MTEExtendedPowerMultiBlockBase<MTEEMMA>
 
     @Override
     public int getMaxParallelRecipes() {
-        return PARALLEL_PER_TIER * GTUtility.getTier(this.getMaxInputVoltage());
+        return 10 * GTUtility.getTier(this.getMaxInputVoltage());
     }
 
     private int casingAmount;
