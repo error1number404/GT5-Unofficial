@@ -1,5 +1,6 @@
 package gregtech.common.tileentities.machines.multi;
 
+import static com.gtnewhorizon.gtnhlib.util.numberformatting.NumberFormatUtil.formatNumber;
 import static com.gtnewhorizon.structurelib.structure.StructureUtility.ofBlock;
 import static com.gtnewhorizon.structurelib.structure.StructureUtility.onElementPass;
 import static com.gtnewhorizon.structurelib.structure.StructureUtility.transpose;
@@ -19,11 +20,14 @@ import static net.minecraft.util.EnumChatFormatting.BOLD;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumChatFormatting;
 import net.minecraftforge.common.util.ForgeDirection;
+import net.minecraftforge.fluids.Fluid;
 import net.minecraftforge.fluids.FluidStack;
 
 import com.google.common.collect.ImmutableList;
@@ -74,31 +78,121 @@ public class MTEEMMA extends MTEExtendedPowerMultiBlockBase<MTEEMMA>
             FluidStack stack = material.getFluid(amount);
             return stack != null ? stack : material.getMolten(amount);
         }
+
+        public Fluid getFluid() {
+            FluidStack stack = getStack(1);
+            return stack == null ? null : stack.getFluid();
+        }
+
     }
 
     private static final List<List<Electrolyte>> ELECTROLYTES = ImmutableList.of(
         // Tier 1
         ImmutableList.of(
-            new Electrolyte(Materials.Grade1PurifiedWater, 0.6f, 175),
-            new Electrolyte(Materials.Grade2PurifiedWater, 0.4f, 100)),
+            new Electrolyte(Materials.Grade1PurifiedWater, 0.6f, 175000),
+            new Electrolyte(Materials.Grade2PurifiedWater, 0.4f, 100000)),
         // Tier 2
         ImmutableList.of(
-            new Electrolyte(Materials.Grade3PurifiedWater, 0.7f, 350),
-            new Electrolyte(Materials.Grade4PurifiedWater, 0.3f, 200)),
+            new Electrolyte(Materials.Grade3PurifiedWater, 0.7f, 350000),
+            new Electrolyte(Materials.Grade4PurifiedWater, 0.3f, 200000)),
         // Tier 3
         ImmutableList.of(
-            new Electrolyte(Materials.Grade5PurifiedWater, 0.8f, 550),
-            new Electrolyte(Materials.Grade6PurifiedWater, 0.2f, 300)),
+            new Electrolyte(Materials.Grade5PurifiedWater, 0.8f, 550000),
+            new Electrolyte(Materials.Grade6PurifiedWater, 0.2f, 300000)),
         // Tier 4
         ImmutableList.of(
-            new Electrolyte(Materials.Grade7PurifiedWater, 0.9f, 750),
-            new Electrolyte(Materials.Grade8PurifiedWater, 0.1f, 400),
-            new Electrolyte(Materials.BioMediumSterilized, 1.0f, 750),
-            new Electrolyte(Materials.GrowthMediumSterilized, 0.01f, 500)));
+            new Electrolyte(Materials.Grade7PurifiedWater, 0.9f, 750000),
+            new Electrolyte(Materials.Grade8PurifiedWater, 0.1f, 400000),
+            new Electrolyte(Materials.BioMediumSterilized, 1.0f, 750000),
+            new Electrolyte(Materials.GrowthMediumSterilized, 0.01f, 500000)));
+
+    private final Map<Fluid, Long> validFluidMap = new HashMap<>() {
+
+        private static final long serialVersionUID = -8452610443191188130L;
+
+        {
+            for (int i = 0; i < ELECTROLYTES.size(); i++) {
+                for (Electrolyte electrolyte : ELECTROLYTES.get(i)) {
+                    put(electrolyte.getFluid(), 0L);
+                }
+            }
+            put(base.mFluid, 0L);
+        }
+    };
+
+    private Long getTakenInternalCapacity() {
+        Long result = 0L;
+        for (Map.Entry<Fluid, Long> entry : validFluidMap.entrySet()) {
+            result += entry.getValue();
+        }
+        return result;
+    }
+
+    @Override
+    public void onPreTick(IGregTechTileEntity aBaseMetaTileEntity, long aTick) {
+        super.onPreTick(aBaseMetaTileEntity, aTick);
+
+        if (mMachine) {
+            if ((aTick % TICKS_BETWEEN_HATCH_DRAIN) == 0) {
+                drainFluidFromHatchesAndStoreInternally();
+            }
+        }
+    }
+
+    private long getInternalCapacity() {
+        if (structureTier < 1 || structureTier > INTERNAL_CAPACITY.size()) return 0L;
+        return INTERNAL_CAPACITY.get(structureTier - 1);
+    }
+
+    @Override
+    public String[] getInfoData() {
+        ArrayList<String> str = new ArrayList<>(Arrays.asList(super.getInfoData()));
+        long taken = getTakenInternalCapacity();
+        long max = getInternalCapacity();
+        str.add(
+            EnumChatFormatting.YELLOW + "Internal Capacity: "
+                + EnumChatFormatting.RESET
+                + formatNumber(taken)
+                + " / "
+                + formatNumber(max)
+                + " L");
+        validFluidMap.forEach((fluid, amount) -> {
+            if (amount > 0) {
+                str.add(
+                    EnumChatFormatting.BLUE + fluid.getLocalizedName()
+                        + EnumChatFormatting.RESET
+                        + ": "
+                        + EnumChatFormatting.AQUA
+                        + formatNumber(amount)
+                        + " L");
+            }
+        });
+        return str.toArray(new String[0]);
+    }
+
+    private void drainFluidFromHatchesAndStoreInternally() {
+        Long internalCapacity = getTakenInternalCapacity();
+        if (internalCapacity >= getInternalCapacity()) {
+            return;
+        }
+        Long capacityLeft = INTERNAL_CAPACITY.get(structureTier) - internalCapacity;
+        List<FluidStack> fluidStacks = getStoredFluids();
+        for (FluidStack fluidStack : fluidStacks) {
+            if (validFluidMap.containsKey(fluidStack.getFluid())) {
+                Long toMerge = Math.min(capacityLeft, (long) fluidStack.amount);
+                validFluidMap.merge(fluidStack.getFluid(), toMerge, Long::sum);
+                fluidStack.amount -= toMerge.intValue();
+                capacityLeft -= toMerge;
+            }
+            if (capacityLeft == 0) break;
+        }
+        updateSlots();
+    }
+
     private static final Materials base = Materials.StableBaryonicMatter;
 
     private static final float SPEED_PER_100KL_OF_ELECTROLYTE = 0.125f;
-    private static final ImmutableList<Integer> INTERNAL_CAPACITY_KL = ImmutableList.of(200, 400, 600, 800);
+    private static final ImmutableList<Long> INTERNAL_CAPACITY = ImmutableList.of(200000L, 400000L, 600000L, 800000L);
     private static final int ELECTRODE_DURA_PER_PARALLEL = 40;
     private static final float SPEED = 4f;
     private static final float EU_EFFICIENCY = 0.7f;
@@ -109,6 +203,7 @@ public class MTEEMMA extends MTEExtendedPowerMultiBlockBase<MTEEMMA>
     private static final float ELECTRODE_SPEED_BOOST = 4.0f;
     private static final float ELECTRODE_DURABILITY_PENALTY = 2.0f;
     private static final float CONSUME_UP_TO = 0.0025f;
+    private static final int TICKS_BETWEEN_HATCH_DRAIN = 5;
 
     private static final List<List<Float>> IMBALANCE_PENALTIES = ImmutableList.of(
         ImmutableList.of(0.05f, 0.25f),
@@ -311,16 +406,16 @@ public class MTEEMMA extends MTEExtendedPowerMultiBlockBase<MTEEMMA>
                     + " durability is consumed from a random electrode")
             .addSeparator()
             .addInfo("Internal capacity is determined by Structure Tier");
-        for (int i = 0; i < INTERNAL_CAPACITY_KL.size(); i++) {
+        for (int i = 0; i < INTERNAL_CAPACITY.size(); i++) {
             tt.addInfo(
                 "Tier " + EnumChatFormatting.WHITE
                     + (i + 1)
                     + EnumChatFormatting.GRAY
                     + ": "
                     + EnumChatFormatting.AQUA
-                    + INTERNAL_CAPACITY_KL.get(i)
+                    + INTERNAL_CAPACITY.get(i)
                     + EnumChatFormatting.GRAY
-                    + " KL");
+                    + " L");
         }
         tt.addInfo(
             "Any amount of electrolyte and base provided is consumed until " + EnumChatFormatting.AQUA
@@ -336,33 +431,33 @@ public class MTEEMMA extends MTEExtendedPowerMultiBlockBase<MTEEMMA>
                     + EnumChatFormatting.GREEN
                     + "x2")
             .addSeparator();
-        // tt.addInfo("Each Structure Tier unlocks new electrolytes");
-        // int m = 0;
-        // List<EnumChatFormatting> electrolyteColors = ImmutableList
-        // .of(EnumChatFormatting.GOLD, EnumChatFormatting.GREEN);
-        // for (int i = 0; i < ELECTROLYTES.size(); i++) {
-        // for (Electrolyte electrolyte : ELECTROLYTES.get(i)) {
-        // tt.addInfo(
-        // "Tier " + EnumChatFormatting.WHITE
-        // + (i + 1)
-        // + EnumChatFormatting.GRAY
-        // + ": "
-        // + electrolyteColors.get(m % 2)
-        // + electrolyte.material.getLocalizedName()
-        // + EnumChatFormatting.GRAY
-        // + " | "
-        // + EnumChatFormatting.RED
-        // + (int) (electrolyte.reactivity * 100)
-        // + "%"
-        // + EnumChatFormatting.GRAY
-        // + " reactivity | "
-        // + EnumChatFormatting.AQUA
-        // + electrolyte.amountToBecomeReactive
-        // + EnumChatFormatting.GRAY
-        // + " KL");
-        // m++;
-        // }
-        // }
+        tt.addInfo("Each Structure Tier unlocks new electrolytes");
+        int m = 0;
+        List<EnumChatFormatting> electrolyteColors = ImmutableList
+            .of(EnumChatFormatting.GOLD, EnumChatFormatting.GREEN);
+        for (int i = 0; i < ELECTROLYTES.size(); i++) {
+            for (Electrolyte electrolyte : ELECTROLYTES.get(i)) {
+                tt.addInfo(
+                    "Tier " + EnumChatFormatting.WHITE
+                        + (i + 1)
+                        + EnumChatFormatting.GRAY
+                        + ": "
+                        + electrolyteColors.get(m % 2)
+                        + electrolyte.material.getLocalizedName()
+                        + EnumChatFormatting.GRAY
+                        + " | "
+                        + EnumChatFormatting.RED
+                        + (int) (electrolyte.reactivity * 100)
+                        + "%"
+                        + EnumChatFormatting.GRAY
+                        + " reactivity | "
+                        + EnumChatFormatting.AQUA
+                        + electrolyte.amountToBecomeReactive
+                        + EnumChatFormatting.GRAY
+                        + " KL");
+                m++;
+            }
+        }
         tt.addInfo(
             "Some recipes " + EnumChatFormatting.RED
                 + BOLD
